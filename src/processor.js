@@ -253,15 +253,65 @@ export function saveState(config, state) {
   fs.writeFileSync(config.stateFile, JSON.stringify(state, null, 2) + '\n');
 }
 
-function buildBirdEnv(config) {
+function buildBirdEnv(config, account = null) {
   const env = { ...process.env };
-  if (config.twitter?.authToken) {
-    env.AUTH_TOKEN = config.twitter.authToken;
+  
+  // Support multi-account: use account-specific credentials or fallback to legacy twitter config
+  const creds = account || config.twitter;
+  
+  if (creds?.authToken) {
+    env.AUTH_TOKEN = creds.authToken;
   }
-  if (config.twitter?.ct0) {
-    env.CT0 = config.twitter.ct0;
+  if (creds?.ct0) {
+    env.CT0 = creds.ct0;
   }
   return env;
+}
+
+/**
+ * Fetch bookmarks from all enabled accounts
+ */
+export function fetchFromAllAccounts(config, count = 10, options = {}) {
+  const accounts = config.accounts || [];
+  const enabledAccounts = accounts.filter(a => a.enabled !== false);
+  
+  if (enabledAccounts.length === 0) {
+    // Fallback to legacy single-account mode
+    if (config.twitter?.authToken) {
+      return fetchFromSource(config, count, options);
+    }
+    console.log('No enabled accounts configured');
+    return [];
+  }
+  
+  console.log(`Fetching from ${enabledAccounts.length} account(s)...`);
+  
+  const allBookmarks = [];
+  const seen = new Set();
+  
+  for (const account of enabledAccounts) {
+    const accountConfig = { ...config, twitter: account.twitter };
+    console.log(`\n📱 Account: ${account.name || account.id}`);
+    
+    try {
+      const accountBookmarks = fetchFromSource(accountConfig, count, options);
+      
+      for (const bookmark of accountBookmarks) {
+        if (!seen.has(bookmark.id)) {
+          seen.add(bookmark.id);
+          // Tag bookmark with account info
+          bookmark._accountId = account.id;
+          bookmark._accountName = account.name || account.id;
+          allBookmarks.push(bookmark);
+        }
+      }
+    } catch (err) {
+      console.error(`  Error fetching from account ${account.id}: ${err.message}`);
+    }
+  }
+  
+  console.log(`\nTotal: ${allBookmarks.length} unique bookmarks from ${enabledAccounts.length} account(s)`);
+  return allBookmarks;
 }
 
 export function fetchBookmarks(config, count = 10, options = {}) {
@@ -595,13 +645,17 @@ export async function fetchAndPrepareBookmarks(options = {}) {
 
   let tweets = [];
   const hasFolders = Object.keys(config.folders || {}).length > 0;
+  const hasAccounts = (config.accounts || []).filter(a => a.enabled !== false).length > 0;
 
-  if (hasFolders && source === 'bookmarks') {
-    // Fetch from each configured folder with tags
+  if (hasAccounts) {
+    // Multi-account mode: fetch from all enabled accounts
+    tweets = fetchFromAllAccounts(configWithOptions, count, fetchOptions);
+  } else if (hasFolders && source === 'bookmarks') {
+    // Legacy: fetch from each configured folder with tags
     console.log(`Fetching from ${Object.keys(config.folders).length} folder(s)${includeMedia ? ' (with media)' : ''}`);
     tweets = fetchFromFolders(configWithOptions, count, fetchOptions);
   } else {
-    // Normal fetch from source
+    // Normal fetch from source (single account legacy mode)
     console.log(`Fetching from source: ${source}${includeMedia ? ' (with media)' : ''}${fetchOptions.all ? ' (paginated)' : ''}`);
     tweets = fetchFromSource(configWithOptions, count, fetchOptions);
   }

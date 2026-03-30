@@ -1,13 +1,35 @@
 {
+  "source": "bookmarks",
   "archiveFile": "./bookmarks.md",
   "pendingFile": "./.state/pending-bookmarks.json",
   "stateFile": "./.state/bookmarks-state.json",
   "parallelThreshold": 8,
   "timezone": "UTC",
-  "twitter": {
-    "authToken": "YOUR_AUTH_TOKEN_HERE",
-    "ct0": "YOUR_CT0_HERE"
+  
+  "accounts": [
+    {
+      "id": "main",
+      "name": "Main Account",
+      "enabled": true,
+      "twitter": {
+        "authToken": "YOUR_AUTH_TOKEN_HERE",
+        "ct0": "YOUR_CT0_HERE"
+      }
+    }
+  ],
+  
+  "llm": {
+    "provider": "openrouter",
+    "model": "x-ai/grok-4.1-fast",
+    "apiKey": "YOUR_OPENROUTER_API_KEY"
   },
+  
+  "schedule": {
+    "enabled": false,
+    "interval": "30m",
+    "cron": null
+  },
+  
   "autoInvokeClaude": true,
   "claudeModel": "sonnet",
   "autoInvokeOpencode": true,

@@ -340,6 +340,167 @@ async function main() {
       break;
     }
 
+    case 'account':
+    case 'accounts': {
+      const config = loadConfig();
+      const accountArgs = args.slice(1);
+      
+      if (accountArgs.includes('--list') || accountArgs.length === 0) {
+        const accounts = config.accounts || [];
+        console.log('Accounts\n');
+        if (accounts.length === 0) {
+          console.log('No accounts configured. Using legacy twitter config.');
+          if (config.twitter?.authToken) {
+            console.log(`  ✓ Legacy account: ${config.twitter.authToken.slice(0, 10)}...`);
+          }
+        } else {
+          accounts.forEach(a => {
+            console.log(`  ${a.enabled !== false ? '✓' : '✗'} ${a.name || a.id} (${a.id})`);
+          });
+        }
+      } else if (accountArgs.includes('--add')) {
+        const idIdx = accountArgs.indexOf('--add') + 1;
+        const nameIdx = accountArgs.indexOf('--name') + 1;
+        const authIdx = accountArgs.indexOf('--auth') + 1;
+        const ct0Idx = accountArgs.indexOf('--ct0') + 1;
+        
+        if (idIdx >= accountArgs.length || authIdx >= accountArgs.length || ct0Idx >= accountArgs.length) {
+          console.log('Usage: smaug account --add <id> --name "Name" --auth <token> --ct0 <token>');
+          console.log('Example: smaug account --add work --name "Work Account" --auth xxx --ct0 yyy');
+          break;
+        }
+        
+        const newAccount = {
+          id: accountArgs[idIdx],
+          name: nameIdx > 0 && nameIdx < accountArgs.length ? accountArgs[nameIdx] : accountArgs[idIdx],
+          enabled: true,
+          twitter: {
+            authToken: accountArgs[authIdx],
+            ct0: ct0Idx < accountArgs.length ? accountArgs[ct0Idx] : ''
+          }
+        };
+        
+        const accounts = config.accounts || [];
+        accounts.push(newAccount);
+        config.accounts = accounts;
+        
+        const fs = await import('fs');
+        fs.writeFileSync('./smaug.config.json', JSON.stringify(config, null, 2));
+        console.log(`✓ Added account: ${newAccount.name} (${newAccount.id})`);
+      } else if (accountArgs.includes('--enable')) {
+        const idIdx = accountArgs.indexOf('--enable') + 1;
+        if (idIdx >= accountArgs.length) {
+          console.log('Usage: smaug account --enable <id>');
+          break;
+        }
+        const targetId = accountArgs[idIdx];
+        const accounts = config.accounts || [];
+        const acc = accounts.find(a => a.id === targetId);
+        if (acc) {
+          acc.enabled = true;
+          const fs = await import('fs');
+          fs.writeFileSync('./smaug.config.json', JSON.stringify(config, null, 2));
+          console.log(`✓ Enabled account: ${targetId}`);
+        } else {
+          console.log(`Account not found: ${targetId}`);
+        }
+      } else if (accountArgs.includes('--disable')) {
+        const idIdx = accountArgs.indexOf('--disable') + 1;
+        if (idIdx >= accountArgs.length) {
+          console.log('Usage: smaug account --disable <id>');
+          break;
+        }
+        const targetId = accountArgs[idIdx];
+        const accounts = config.accounts || [];
+        const acc = accounts.find(a => a.id === targetId);
+        if (acc) {
+          acc.enabled = false;
+          const fs = await import('fs');
+          fs.writeFileSync('./smaug.config.json', JSON.stringify(config, null, 2));
+          console.log(`✓ Disabled account: ${targetId}`);
+        } else {
+          console.log(`Account not found: ${targetId}`);
+        }
+      } else {
+        console.log('Account Management\n');
+        console.log('Commands:');
+        console.log('  smaug account                 List accounts');
+        console.log('  smaug account --add <id> --auth <token> --ct0 <token> [--name "Name"]');
+        console.log('  smaug account --enable <id>   Enable account');
+        console.log('  smaug account --disable <id> Disable account');
+      }
+      break;
+    }
+
+    case 'config': {
+      const config = loadConfig();
+      const configArgs = args.slice(1);
+      
+      if (configArgs.includes('--llm-model')) {
+        const modelIdx = configArgs.indexOf('--llm-model') + 1;
+        if (modelIdx >= configArgs.length) {
+          console.log('Usage: smaug config --llm-model <model>');
+          break;
+        }
+        const model = configArgs[modelIdx];
+        config.llm = config.llm || {};
+        config.llm.model = model;
+        const fs = await import('fs');
+        fs.writeFileSync('./smaug.config.json', JSON.stringify(config, null, 2));
+        console.log(`✓ LLM model set to: ${model}`);
+      } else if (configArgs.includes('--llm-key')) {
+        const keyIdx = configArgs.indexOf('--llm-key') + 1;
+        if (keyIdx >= configArgs.length) {
+          console.log('Usage: smaug config --llm-key <api-key>');
+          break;
+        }
+        const apiKey = configArgs[keyIdx];
+        config.llm = config.llm || {};
+        config.llm.apiKey = apiKey;
+        const fs = await import('fs');
+        fs.writeFileSync('./smaug.config.json', JSON.stringify(config, null, 2));
+        console.log('✓ LLM API key updated');
+      } else if (configArgs.includes('--schedule')) {
+        const intervalIdx = configArgs.indexOf('--schedule') + 1;
+        if (intervalIdx >= configArgs.length) {
+          console.log('Current schedule:', config.schedule?.enabled ? `${config.schedule.interval || config.schedule.cron}` : 'disabled');
+          break;
+        }
+        const interval = configArgs[intervalIdx];
+        config.schedule = config.schedule || {};
+        config.schedule.enabled = true;
+        // Check if cron or interval
+        if (interval.includes('*') || interval.includes('/')) {
+          config.schedule.cron = interval;
+          config.schedule.interval = null;
+        } else {
+          config.schedule.interval = interval;
+          config.schedule.cron = null;
+        }
+        const fs = await import('fs');
+        fs.writeFileSync('./smaug.config.json', JSON.stringify(config, null, 2));
+        console.log(`✓ Schedule set to: ${interval}`);
+      } else if (configArgs.includes('--schedule-disable')) {
+        config.schedule = config.schedule || {};
+        config.schedule.enabled = false;
+        const fs = await import('fs');
+        fs.writeFileSync('./smaug.config.json', JSON.stringify(config, null, 2));
+        console.log('✓ Schedule disabled');
+      } else {
+        console.log('LLM & Schedule Config\n');
+        console.log(`LLM Provider: ${config.llm?.provider || 'openrouter'}`);
+        console.log(`LLM Model:   ${config.llm?.model || 'x-ai/grok-4.1-fast'}`);
+        console.log(`LLM Key:     ${config.llm?.apiKey ? '***configured***' : 'not set'}`);
+        console.log(`Schedule:    ${config.schedule?.enabled ? (config.schedule.cron || config.schedule.interval) : 'disabled'}`);
+        console.log('\nCommands:');
+        console.log('  smaug config --llm-model <model>     Set LLM model');
+        console.log('  smaug config --llm-key <key>         Set LLM API key');
+        console.log('  smaug config --schedule <interval>  Set schedule (e.g., 30m, */15 * * * *)');
+        console.log('  smaug config --schedule-disable      Disable schedule');
+      }
+      break;
+    }
+
     case 'fetch': {
       const count = parseInt(args.find(a => a.match(/^\d+$/)) || '20', 10);
       const specificIds = args.filter(a => a.match(/^\d{10,}$/));

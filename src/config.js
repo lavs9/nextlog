@@ -40,6 +40,23 @@ const DEFAULT_CONFIG = {
     ct0: null
   },
 
+  // Multi-account support: array of X accounts
+  accounts: [],
+
+  // LLM configuration
+  llm: {
+    provider: 'openrouter',
+    model: 'x-ai/grok-4.1-fast',
+    apiKey: null
+  },
+
+  // Scheduling configuration
+  schedule: {
+    enabled: false,
+    interval: '30m',
+    cron: null
+  },
+
   // ---- Bookmark Folders ----
   // Map folder IDs to tag names. Bookmarks from each folder will be tagged.
   // Get folder IDs from URLs like: https://x.com/i/bookmarks/1234567890
@@ -202,6 +219,18 @@ export function loadConfig(configPath) {
     folders: {
       ...DEFAULT_CONFIG.folders,
       ...fileConfig.folders
+    },
+    // Merge accounts config
+    accounts: fileConfig.accounts || DEFAULT_CONFIG.accounts || [],
+    // Merge llm config
+    llm: {
+      ...DEFAULT_CONFIG.llm,
+      ...fileConfig.llm
+    },
+    // Merge schedule config
+    schedule: {
+      ...DEFAULT_CONFIG.schedule,
+      ...fileConfig.schedule
     }
   };
 
