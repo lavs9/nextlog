@@ -23,6 +23,88 @@ def main(ctx, config, verbose):
 
 
 @main.command()
+@click.argument("name")
+@click.option("--path", "-p", type=click.Path(), help="Vault location (default: current directory)")
+@click.pass_context
+def init(ctx, name, path):
+    """Initialize a new NextLog vault.
+
+    Creates a new vault with the given NAME at the specified PATH.
+
+    Example:
+        nextlog init my-vault
+        nextlog init work-notes --path ~/notes
+    """
+    if path:
+        vault_path = Path(path).expanduser().absolute()
+    else:
+        vault_path = Path.cwd() / name
+
+    if vault_path.exists() and any(vault_path.iterdir()):
+        click.echo(f"Error: Directory {vault_path} already exists and is not empty.")
+        return
+
+    vault_path.mkdir(parents=True, exist_ok=True)
+
+    (vault_path / "inbox" / "raw").mkdir(parents=True, exist_ok=True)
+    (vault_path / "inbox" / "processed").mkdir(parents=True, exist_ok=True)
+    (vault_path / "synthesis").mkdir(parents=True, exist_ok=True)
+    (vault_path / "ref").mkdir(parents=True, exist_ok=True)
+    (vault_path / ".state").mkdir(parents=True, exist_ok=True)
+
+    config = {
+        "vault": ".",
+        "timezone": "America/New_York",
+        "twitter": {
+            "auth_token": "",
+            "ct0": ""
+        },
+        "llm": {
+            "provider": "openrouter",
+            "api_key": "",
+            "model": "anthropic/claude-3.5-sonnet"
+        },
+        "bird_path": "bird"
+    }
+
+    import yaml
+    config_path = vault_path / "nextlog.json"
+    with open(config_path, "w") as f:
+        yaml.dump(config, f, default_flow_style=False)
+
+    readme_content = """# NextLog Vault
+
+This is a NextLog vault for processing bookmarks and synthesizing notes.
+
+## Getting Started
+
+1. Set up Twitter credentials in `nextlog.json`
+2. Run `nextlog fetch` to fetch bookmarks
+3. Run `nextlog process` to extract content
+4. Run `nextlog synthesize` to create notes
+
+## Commands
+
+```bash
+nextlog fetch           # Fetch X bookmarks
+nextlog process         # Extract content
+nextlog synthesize      # Create notes
+nextlog search "query"  # Search via QMD
+```
+
+For more help, see: https://github.com/lavs9/nextlog
+"""
+
+    (vault_path / "README.md").write_text(readme_content)
+
+    click.echo(f"✓ Created vault at: {vault_path}")
+    click.echo("\nNext steps:")
+    click.echo(f"  cd {vault_path}")
+    click.echo("  # Edit nextlog.json with your credentials")
+    click.echo("  nextlog fetch")
+
+
+@main.command()
 @click.option("--limit", "-l", type=int, default=20, help="Number of bookmarks to fetch")
 @click.option("--all", "fetch_all", is_flag=True, help="Fetch all bookmarks (requires bird from git)")
 @click.pass_context
