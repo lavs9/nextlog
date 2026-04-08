@@ -1,0 +1,11 @@
+# Inbox - Raw Data Dump
+
+This folder contains raw data dumps from various sources:
+- X/Twitter bookmarks
+- YouTube links
+- Obsidian web clips
+- Manual additions
+
+## Structure
+- `raw/` - Pending items to process
+- `processed/` - Extracted content with frontmatter status

@@ -1,0 +1,18 @@
+{
+  "vault": ".",
+  "timezone": "America/New_York",
+  "twitter": {
+    "auth_token": "",
+    "ct0": ""
+  },
+  "llm": {
+    "provider": "openrouter",
+    "api_key": "",
+    "model": "anthropic/claude-3.5-sonnet"
+  },
+  "bird_path": "bird",
+  "schedule": {
+    "enabled": false,
+    "interval": "30m"
+  }
+}
