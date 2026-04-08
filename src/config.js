@@ -15,6 +15,9 @@ const DEFAULT_CONFIG = {
   // Source to fetch from: 'bookmarks', 'likes', or 'both'
   source: 'bookmarks',
 
+  // Path to the Obsidian vault for note processing
+  vault: null,
+
   // EXPERIMENTAL: Include media attachments (photos, videos, GIFs)
   // Off by default - enable with --media flag or config
   includeMedia: false,
@@ -282,6 +285,9 @@ export function loadConfig(configPath) {
   if (process.env.CLAUDE_TIMEOUT) {
     config.claudeTimeout = parseInt(process.env.CLAUDE_TIMEOUT, 10);
   }
+  if (process.env.VAULT) {
+    config.vault = process.env.VAULT;
+  }
   if (process.env.PROJECT_ROOT) {
     config.projectRoot = process.env.PROJECT_ROOT;
   }
@@ -293,6 +299,7 @@ export function loadConfig(configPath) {
   }
 
   // Expand ~ in all path-related config values
+  config.vault = expandTilde(config.vault);
   config.archiveFile = expandTilde(config.archiveFile);
   config.pendingFile = expandTilde(config.pendingFile);
   config.stateFile = expandTilde(config.stateFile);
@@ -309,6 +316,14 @@ export function loadConfig(configPath) {
   }
 
   return config;
+}
+
+/**
+ * Get the effective working directory for file operations
+ * If vault is configured, use vault path; otherwise use current directory
+ */
+export function getVaultPath(config) {
+  return config.vault || process.cwd();
 }
 
 /**
@@ -338,6 +353,11 @@ export function initConfig(targetPath = './smaug.config.json') {
       // "1234567890": "ai-tools",
       // "0987654321": "articles-to-read"
     },
+
+    // Path to your Obsidian vault - REQUIRED for processing notes
+    // All knowledge files and bookmarks will be stored here
+    // Example: vault: "~/Obsidian Vaults/MyVault"
+    vault: null,
 
     // Categories define how different bookmark types are handled
     // Customize or add your own! See README for details.

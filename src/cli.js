@@ -436,7 +436,17 @@ async function main() {
       const config = loadConfig();
       const configArgs = args.slice(1);
       
-      if (configArgs.includes('--llm-model')) {
+      if (configArgs.includes('--vault')) {
+        const vaultIdx = configArgs.indexOf('--vault') + 1;
+        if (vaultIdx >= configArgs.length) {
+          console.log('Usage: smaug config --vault "/path/to/vault"');
+          break;
+        }
+        const vaultPath = configArgs[vaultIdx];
+        config.vault = vaultPath;
+        fs.writeFileSync('./smaug.config.json', JSON.stringify(config, null, 2));
+        console.log(`✓ Vault path set to: ${vaultPath}`);
+      } else if (configArgs.includes('--llm-model')) {
         const modelIdx = configArgs.indexOf('--llm-model') + 1;
         if (modelIdx >= configArgs.length) {
           console.log('Usage: smaug config --llm-model <model>');
@@ -624,6 +634,8 @@ Commands:
   fetch --source <source>  Fetch from: bookmarks, likes, or both
   fetch --media  EXPERIMENTAL: Include media attachments
   process        Show pending tweets
+  new-note       Create or update a note in your vault
+  config         View/manage configuration
   status         Show current status
 
 Examples:
@@ -638,9 +650,12 @@ Examples:
   smaug fetch --source both      # Fetch from bookmarks AND likes
   smaug fetch --media            # Include photos/videos/GIFs (experimental)
   smaug fetch --force            # Re-process archived tweets
+  smaug new-note --topic "Claude Code" --url "https://..."  # Create note
+  smaug config --vault "/path/to/vault"  # Set vault path
 
 Config (smaug.config.json):
   "source": "bookmarks"    Default source (bookmarks, likes, or both)
+  "vault": "/path/to/vault"  Your Obsidian vault (REQUIRED for new-note)
   "includeMedia": false    EXPERIMENTAL: Include media (default: off)
   "folders": {}            Map folder IDs to tags (see README)
 
