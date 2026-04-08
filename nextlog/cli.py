@@ -7,6 +7,7 @@ import click
 from .config import load_config
 from .processor import Processor
 from .search import Search
+from .synthesizer import Synthesizer
 
 
 @click.group()
@@ -62,16 +63,32 @@ def process(ctx, limit):
 @click.option("--limit", "-l", type=int, help="Limit items to synthesize")
 @click.pass_context
 def synthesize(ctx, limit):
-    """Synthesize processed items into notes."""
+    """Synthesize processed items into notes.
+
+    Uses LLM to identify topics and create structured notes.
+    Requires OpenRouter API key in config for LLM features.
+    """
     config = ctx.obj["config"]
+    verbose = ctx.obj.get("verbose", False)
+
     click.echo("Synthesizing notes...")
     click.echo(f"Processed: {config.inbox_processed}")
     click.echo(f"Synthesis: {config.synthesis}")
 
     config.synthesis.mkdir(parents=True, exist_ok=True)
 
-    click.echo("\nNote: Synthesis with LLM not yet implemented.")
-    click.echo("Coming soon: Topic identification and note generation.")
+    if not config.llm_api_key:
+        click.echo("\nWarning: No LLM API key configured.")
+        click.echo("Set 'llm.api_key' in nextlog.json or OPENROUTER_API_KEY env var.")
+        click.echo("Using simple keyword-based topic extraction.\n")
+
+    synthesizer = Synthesizer(config)
+    count = synthesizer.synthesize_all(limit=limit)
+
+    click.echo(f"\nSynthesized {count} items.")
+
+    if verbose and count > 0:
+        click.echo(f"\nCreated notes in: {config.synthesis}")
 
 
 @main.command()

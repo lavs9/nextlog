@@ -239,7 +239,7 @@ class Search:
 
         try:
             data = json.loads(result.stdout)
-            return data.get("docs", [])
+            return data.get("docs", [])  # type: ignore[no-any-return]
         except json.JSONDecodeError:
             return []
 
