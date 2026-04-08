@@ -5,6 +5,7 @@ from pathlib import Path
 import click
 
 from .config import load_config
+from .fetcher import Fetcher
 from .processor import Processor
 from .search import Search
 from .synthesizer import Synthesizer
@@ -22,21 +23,61 @@ def main(ctx, config, verbose):
 
 
 @main.command()
+@click.option("--limit", "-l", type=int, default=20, help="Number of bookmarks to fetch")
+@click.option("--all", "fetch_all", is_flag=True, help="Fetch all bookmarks (requires bird from git)")
 @click.pass_context
-def fetch(ctx):
-    """Fetch X bookmarks."""
+def fetch(ctx, limit, fetch_all):
+    """Fetch X bookmarks using bird CLI.
+
+    Requires:
+    - bird CLI: https://github.com/steipete/bird
+    - Twitter auth_token in nextlog.json
+
+    Example:
+        nextlog fetch -l 50
+        nextlog fetch --all
+    """
     config = ctx.obj["config"]
+    verbose = ctx.obj.get("verbose", False)
+
     click.echo("Fetching bookmarks from X...")
     click.echo(f"Vault: {config.vault_path}")
-    click.echo("\nNote: This requires bird CLI configured in nextlog.json")
-    click.echo("Set twitter.auth_token and twitter.ct0 in your config file.")
-    click.echo("\nExample nextlog.json:")
-    click.echo("""{
+
+    fetcher = Fetcher(config)
+
+    if not fetcher.is_bird_available():
+        click.echo("\nbird CLI not found.")
+        click.echo("Install from: https://github.com/steipete/bird")
+        click.echo("\nOr build from source for --all flag support:")
+        click.echo("  git clone https://github.com/steipete/bird")
+        click.echo("  cd bird && pnpm install && pnpm run build:dist")
+        click.echo("  npm link --force")
+        return
+
+    if not config.twitter.get("auth_token"):
+        click.echo("\nTwitter credentials not configured.")
+        click.echo("Set twitter.auth_token in nextlog.json:")
+        click.echo("""{
   "twitter": {
-    "auth_token": "your_auth_token",
-    "ct0": "your_ct0"
+    "auth_token": "your_auth_token_from_browser",
+    "ct0": "your_ct0_cookie"
   }
 }""")
+        return
+
+    if fetch_all:
+        click.echo("Fetching ALL bookmarks (this may take a while)...")
+    else:
+        click.echo(f"Fetching {limit} bookmarks...")
+
+    count = fetcher.fetch_bookmarks(limit=limit, all_bookmarks=fetch_all)
+
+    if count > 0:
+        click.echo(f"\nFetched {count} bookmarks to inbox/raw/")
+        if verbose:
+            click.echo(f"Files: {config.inbox_raw}")
+    else:
+        click.echo("\nNo bookmarks fetched. Check your credentials.")
 
 
 @main.command()
